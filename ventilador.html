@@ -1,0 +1,1252 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Simulador de Ventilação Mecânica Pro</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+
+    body {
+      background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+      color: #fff;
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+
+    .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+
+    header {
+      background: rgba(0,0,0,0.3);
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .power-indicator {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 20px;
+      background: rgba(0,0,0,0.5);
+      border-radius: 20px;
+      border: 2px solid #333;
+    }
+
+    .power-led {
+      width: 15px; height: 15px; border-radius: 50%;
+      background: #333; transition: all 0.3s;
+    }
+
+    .power-led.on { background: #00ff00; box-shadow: 0 0 10px #00ff00; }
+    .power-led.standby { background: #ffc107; box-shadow: 0 0 10px #ffc107; animation: pulse 2s infinite; }
+
+    @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.5;} }
+
+    .mode-display {
+      font-weight: bold;
+      font-size: 0.9em;
+      padding: 5px 10px;
+      border-radius: 5px;
+      background: rgba(0,0,0,0.3);
+      margin-left: 10px;
+    }
+
+    .mode-display.standby { background: rgba(255,193,7,0.3); color:#ffc107; border: 1px solid #ffc107; }
+    .mode-display.ventilating { background: rgba(0,255,0,0.3); color:#00ff00; border: 1px solid #00ff00; }
+    .mode-display.off { background: rgba(100,100,100,0.3); color:#888; border: 1px solid #888; }
+
+    .alarm-banner {
+      background: #ff0000;
+      color: white;
+      padding: 15px 20px;
+      border-radius: 5px;
+      font-weight: bold;
+      display: none;
+      animation: pulse 1s infinite;
+      text-align: center;
+      font-size: 1.2em;
+      margin-bottom: 20px;
+      border: 3px solid #fff;
+    }
+
+    .alarm-timer {
+      background: rgba(255,0,0,0.9);
+      color: white;
+      padding: 10px;
+      border-radius: 5px;
+      margin-top: 10px;
+      font-size: 0.9em;
+    }
+
+    .game-over-banner {
+      background: linear-gradient(135deg, #ff0000, #990000);
+      color: white;
+      padding: 30px;
+      border-radius: 10px;
+      display: none;
+      text-align: center;
+      margin-bottom: 20px;
+      border: 3px solid #fff;
+      animation: slideIn 0.5s;
+    }
+
+    @keyframes slideIn { from{ transform: translateY(-100px); opacity:0;} to{ transform: translateY(0); opacity:1;} }
+
+    /* IMPORTANTE:
+       O grid permanece "travado" quando OFF, mas os botões de energia foram movidos para fora dele. */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 20px;
+
+      opacity: 0.2;
+      pointer-events: none;
+      transition: all 0.3s;
+      filter: grayscale(0.8);
+    }
+
+    .main-grid.powered-on { opacity: 1; pointer-events: all; filter: grayscale(0); }
+    .main-grid.standby { opacity: 0.6; pointer-events: all; filter: grayscale(0.3); }
+
+    .panel {
+      background: rgba(255,255,255,0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 15px;
+      padding: 20px;
+      border: 1px solid rgba(255,255,255,0.2);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    }
+
+    .panel-title {
+      font-size: 1.1em;
+      margin-bottom: 15px;
+      color: #4fc3f7;
+      border-bottom: 2px solid #4fc3f7;
+      padding-bottom: 5px;
+    }
+
+    .patient-monitor {
+      background: #000;
+      border-radius: 10px;
+      padding: 15px;
+      margin-bottom: 15px;
+      border: 2px solid #333;
+    }
+
+    .vital-sign {
+      display:flex; justify-content:space-between; margin: 10px 0;
+      padding:10px; background: rgba(255,255,255,0.05); border-radius:5px;
+    }
+
+    .vital-value { font-size: 1.5em; font-weight: bold; font-family: 'Courier New', monospace; }
+    .hr { color:#ff5252; } .spo2 { color:#4fc3f7; } .bp { color:#69f0ae; } .rr { color:#ffd740; }
+
+    .lung-animation {
+      width:200px; height:250px; margin: 20px auto; position: relative;
+      opacity: 0.1; transition: opacity 0.3s;
+    }
+    .powered-on .lung-animation { opacity: 0.3; }
+    .ventilating .lung-animation { opacity: 1; }
+
+    .lung {
+      position:absolute; width:80px; height:120px;
+      background: rgba(255,100,100,0.6);
+      border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+      transition: all 0.5s ease;
+      border: 2px solid rgba(255,255,255,0.3);
+    }
+    .lung.left { left:20px; top:40px; }
+    .lung.right { right:20px; top:40px; }
+    .lung.inflating { transform: scale(1.3); background: rgba(255,150,150,0.8); }
+
+    .trachea {
+      position:absolute; width:20px; height:60px; background: rgba(255,255,255,0.8);
+      left:50%; top:0; transform: translateX(-50%); border-radius:10px;
+    }
+
+    .graph-container {
+      background:#000; border-radius:8px; padding:10px; margin:10px 0;
+      position:relative; height:150px; border:1px solid #333; opacity: 0.2;
+    }
+    .powered-on .graph-container { opacity: 0.5; }
+    .ventilating .graph-container { opacity: 1; }
+
+    canvas { width:100%; height:100%; }
+
+    .graph-label { position:absolute; top:5px; left:10px; font-size: 0.8em; color:#888; }
+
+    .control-group { margin:15px 0; opacity:0.3; pointer-events:none; }
+    .powered-on .control-group { opacity:0.6; pointer-events:none; }
+    .ventilating .control-group { opacity:1; pointer-events:all; }
+
+    .control-label { display:flex; justify-content:space-between; margin-bottom:5px; font-size:0.9em; }
+
+    input[type="range"] {
+      width:100%; height:6px; border-radius:3px;
+      background: rgba(255,255,255,0.2); outline:none; -webkit-appearance:none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance:none; appearance:none;
+      width:18px; height:18px; border-radius:50%;
+      background:#4fc3f7; cursor:pointer;
+    }
+
+    .mode-selector {
+      display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin:15px 0;
+      opacity:0.3; pointer-events:none;
+    }
+    .powered-on .mode-selector { opacity:0.6; pointer-events:none; }
+    .ventilating .mode-selector { opacity:1; pointer-events:all; }
+
+    .mode-btn {
+      padding:10px; border:2px solid rgba(255,255,255,0.3);
+      background: rgba(255,255,255,0.1); color:#fff; border-radius:8px;
+      cursor:pointer; transition: all 0.3s; font-size:0.85em;
+    }
+    .mode-btn:hover { background: rgba(255,255,255,0.2); }
+    .mode-btn.active { background:#4fc3f7; border-color:#4fc3f7; color:#000; font-weight:bold; }
+
+    .alarm-list { max-height:200px; overflow-y:auto; }
+
+    .alarm-item {
+      padding:10px; margin:5px 0; border-radius:5px;
+      display:flex; align-items:center; gap:10px;
+    }
+    .alarm-high { background: rgba(255,0,0,0.3); border-left:4px solid #ff0000; }
+    .alarm-low { background: rgba(255,193,7,0.3); border-left:4px solid #ffc107; }
+    .alarm-info { background: rgba(79,195,247,0.3); border-left:4px solid #4fc3f7; }
+    .alarm-success { background: rgba(105,240,174,0.25); border-left:4px solid #69f0ae; }
+
+    .alarm-icon { font-size:1.5em; }
+
+    .case-selector {
+      background: rgba(0,0,0,0.3);
+      padding:15px; border-radius:8px; margin:10px 0;
+      opacity:0.3; pointer-events:none;
+    }
+    .powered-on .case-selector { opacity:0.6; pointer-events:none; }
+    .ventilating .case-selector { opacity:1; pointer-events:all; }
+
+    .case-btn {
+      width:100%; padding:12px; margin:5px 0;
+      background: rgba(79,195,247,0.2);
+      border:1px solid #4fc3f7; color:white;
+      border-radius:5px; cursor:pointer; text-align:left;
+      transition: all 0.3s;
+    }
+    .case-btn:hover { background: rgba(79,195,247,0.4); transform: translateX(5px); }
+
+    .accessories-grid {
+      display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; margin:10px 0;
+      opacity:0.3; pointer-events:none;
+    }
+    .powered-on .accessories-grid { opacity:0.6; pointer-events:none; }
+    .ventilating .accessories-grid { opacity:1; pointer-events:all; }
+
+    .accessory {
+      background: rgba(255,255,255,0.1);
+      padding:10px; border-radius:8px; text-align:center;
+      cursor:pointer; border:2px solid transparent;
+      transition: all 0.3s;
+    }
+    .accessory:hover { border-color:#4fc3f7; transform: translateY(-2px); }
+    .accessory.active { background: rgba(79,195,247,0.3); border-color:#4fc3f7; }
+
+    .accessory-icon { font-size:2em; margin-bottom:5px; }
+
+    .btn {
+      padding: 15px;
+      border: none;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.3s;
+      text-transform: uppercase;
+      font-size: 0.9em;
+    }
+    .btn-primary { background:#4fc3f7; color:#000; }
+    .btn-danger { background:#ff5252; color:#fff; }
+    .btn-success { background:#69f0ae; color:#000; }
+    .btn-warning { background:#ffc107; color:#000; }
+
+    .btn-power-on { background:#00ff00; color:#000; font-size:1.1em; }
+    .btn-power-off { background:#ff0000; color:#fff; font-size:1.1em; }
+    .btn-standby { background:#ffc107; color:#000; font-size:1.1em; }
+
+    .btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+    .btn:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
+
+    .info-box {
+      background: rgba(255,255,255,0.05);
+      padding:10px; border-radius:5px; margin:10px 0;
+      font-size:0.85em; border-left:3px solid #4fc3f7;
+    }
+
+    .parameter-display {
+      display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin:10px 0;
+    }
+    .param-item { background: rgba(0,0,0,0.3); padding:10px; border-radius:5px; text-align:center; }
+    .param-value { font-size:1.3em; font-weight:bold; color:#4fc3f7; font-family:'Courier New', monospace; }
+    .param-label { font-size:0.8em; color:#888; margin-top:5px; }
+
+    .solution-box {
+      background: rgba(255,193,7,0.2);
+      border: 2px solid #ffc107;
+      padding:20px; border-radius:10px; margin:20px 0;
+      text-align:left;
+    }
+    .solution-box h3 { color:#ffc107; margin-bottom:10px; }
+    .solution-box ul { margin-left:20px; line-height:1.8; }
+
+    .standby-notice {
+      background: rgba(255,193,7,0.2);
+      border: 2px solid #ffc107;
+      padding:15px; border-radius:8px;
+      text-align:center; margin:10px 0;
+      display:none;
+    }
+    .standby-notice.show { display:block; animation: pulse 2s infinite; }
+
+    ::-webkit-scrollbar { width:8px; }
+    ::-webkit-scrollbar-track { background: rgba(255,255,255,0.1); border-radius:4px; }
+    ::-webkit-scrollbar-thumb { background:#4fc3f7; border-radius:4px; }
+
+    .calibration-modal {
+      position: fixed; top:0; left:0; width:100%; height:100%;
+      background: rgba(0,0,0,0.8);
+      display:none; justify-content:center; align-items:center;
+      z-index:1000;
+    }
+    .calibration-content {
+      background:#1e3c72;
+      padding:30px; border-radius:15px;
+      max-width:500px; width:90%;
+      border:2px solid #4fc3f7;
+    }
+    .progress-bar {
+      width:100%; height:20px;
+      background: rgba(255,255,255,0.2);
+      border-radius:10px; overflow:hidden; margin:20px 0;
+    }
+    .progress-fill {
+      height:100%; background:#4fc3f7;
+      width:0%; transition: width 0.3s;
+    }
+
+    /* NOVO: Barra de controles (fora do main-grid) */
+    .control-bar {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    @media (max-width: 900px) {
+      .main-grid { grid-template-columns: 1fr; }
+      .control-bar { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+
+<body>
+<div class="container">
+  <header>
+    <div>
+      <h1>🫁 Simulador de Ventilação Mecânica</h1>
+      <p style="opacity: 0.8; font-size: 0.9em;">Sistema Avançado de Treinamento</p>
+    </div>
+    <div style="display:flex; align-items:center; gap:20px;">
+      <div id="clock" style="font-family:'Courier New', monospace; font-size: 1.2em;"></div>
+      <div class="power-indicator">
+        <div class="power-led" id="powerLed"></div>
+        <span id="powerStatus">DESLIGADO</span>
+      </div>
+      <div class="mode-display off" id="modeDisplay">⭕ DESLIGADO</div>
+    </div>
+  </header>
+
+  <div id="alarmBanner" class="alarm-banner">
+    <div>⚠️ ALARME: <span id="alarmText"></span></div>
+    <div class="alarm-timer">Tempo para correção: <span id="alarmTimer">60</span>s</div>
+  </div>
+
+  <div id="gameOverBanner" class="game-over-banner">
+    <h2>💀 FIM DE JOGO</h2>
+    <p style="font-size: 1.2em; margin: 20px 0;">Você não corrigiu o alarme a tempo!</p>
+    <div class="solution-box">
+      <h3>Solução que deveria ter sido aplicada:</h3>
+      <ul id="solutionList"><li>Item 1</li><li>Item 2</li></ul>
+    </div>
+    <p style="margin: 20px 0;">O paciente será reiniciado em uma nova situação clínica...</p>
+    <button class="btn btn-primary" onclick="restartGame()" style="margin-top: 20px;">
+      🔄 Reiniciar Sistema
+    </button>
+  </div>
+
+  <div class="standby-notice" id="standbyNotice">
+    ⚠️ MODO STANDBY ATIVADO - Ventilador pronto. Aguardando conexão do paciente e início da ventilação.
+  </div>
+
+  <!-- ✅ NOVO: BARRA DE CONTROLES FORA DO GRID (sempre clicável) -->
+  <div class="panel" style="margin-bottom: 20px;">
+    <div class="panel-title">🎛️ Controles do Sistema</div>
+    <div class="control-bar">
+      <button class="btn btn-power-on" onclick="powerOn()" id="btnPowerOn">⚡ LIGAR</button>
+      <button class="btn btn-power-off" onclick="powerOff()" id="btnPowerOff">🛑 DESLIGAR</button>
+      <button class="btn btn-standby" onclick="toggleStandby()" id="btnStandby" disabled>⏸ MODO STANDBY</button>
+      <button class="btn btn-warning" onclick="restartSystem()" id="btnRestart">🔄 Reiniciar</button>
+    </div>
+
+    <div class="control-bar" style="grid-template-columns: repeat(4, 1fr);">
+      <button class="btn btn-success" onclick="toggleVentilation()" id="btnVent" disabled>▶ INICIAR VENTILAÇÃO</button>
+      <button class="btn btn-danger" onclick="emergencyStop()" id="btnEmergency" disabled>🛑 Parada</button>
+      <button class="btn btn-primary" onclick="togglePause()" id="btnPause" disabled>⏸ Pausar</button>
+      <button class="btn btn-primary" onclick="startCalibration()" id="btnCalibrate" disabled>🔧 Calibrar</button>
+    </div>
+
+    <div class="info-box" id="patientStatus">
+      <strong>Status:</strong> Sistema desligado. Pressione LIGAR para iniciar.
+    </div>
+  </div>
+
+  <div class="main-grid" id="mainGrid">
+    <!-- Painel Esquerdo -->
+    <div class="panel">
+      <div class="panel-title">👤 Monitor do Paciente</div>
+
+      <div class="lung-animation">
+        <div class="trachea"></div>
+        <div class="lung left" id="lungLeft"></div>
+        <div class="lung right" id="lungRight"></div>
+      </div>
+
+      <div class="patient-monitor">
+        <div class="vital-sign"><span>FC</span><span class="vital-value hr" id="hrValue">--</span><span>bpm</span></div>
+        <div class="vital-sign"><span>SpO₂</span><span class="vital-value spo2" id="spo2Value">--</span><span>%</span></div>
+        <div class="vital-sign"><span>PA</span><span class="vital-value bp" id="bpValue">--/--</span><span>mmHg</span></div>
+        <div class="vital-sign"><span>FR</span><span class="vital-value rr" id="rrValue">--</span><span>rpm</span></div>
+        <div class="vital-sign"><span>EtCO₂</span><span class="vital-value" style="color:#ffd740;" id="etco2Value">--</span><span>mmHg</span></div>
+      </div>
+
+      <div class="case-selector">
+        <div class="panel-title">📋 Casos Clínicos</div>
+        <button class="case-btn" onclick="loadCase('normal')"><strong>Paciente Normal</strong><br><small>Cirurgia eletiva - Sem comorbidades</small></button>
+        <button class="case-btn" onclick="loadCase('copd')"><strong>DPOC Exacerbada</strong><br><small>Hiperinsuflação - Auto-PEEP</small></button>
+        <button class="case-btn" onclick="loadCase('ards')"><strong>SDRA Grave</strong><br><small>Complacência reduzida - P/F &lt; 100</small></button>
+        <button class="case-btn" onclick="loadCase('obesity')"><strong>Obesidade Mórbida</strong><br><small>Restritivo - PEEP elevada necessária</small></button>
+        <button class="case-btn" onclick="loadCase('pneumothorax')"><strong>Pneumotórax</strong><br><small>Emergência - Queda súbita de complacência</small></button>
+      </div>
+    </div>
+
+    <!-- Painel Central -->
+    <div class="panel">
+      <div class="panel-title">📊 Monitorização em Tempo Real</div>
+
+      <div class="graph-container"><span class="graph-label">Pressão das Vias Aéreas (cmH₂O)</span><canvas id="pressureGraph"></canvas></div>
+      <div class="graph-container"><span class="graph-label">Volume Corrente (mL)</span><canvas id="volumeGraph"></canvas></div>
+      <div class="graph-container"><span class="graph-label">Fluxo (L/min)</span><canvas id="flowGraph"></canvas></div>
+      <div class="graph-container"><span class="graph-label">Capnografia (EtCO₂)</span><canvas id="capnoGraph"></canvas></div>
+
+      <div class="parameter-display">
+        <div class="param-item"><div class="param-value" id="displayVt">0</div><div class="param-label">Vt (mL)</div></div>
+        <div class="param-item"><div class="param-value" id="displayPpeak">0</div><div class="param-label">P pico (cmH₂O)</div></div>
+        <div class="param-item"><div class="param-value" id="displayPplat">0</div><div class="param-label">P platô (cmH₂O)</div></div>
+        <div class="param-item"><div class="param-value" id="displayCompliance">0</div><div class="param-label">Complacência</div></div>
+      </div>
+    </div>
+
+    <!-- Painel Direito -->
+    <div class="panel">
+      <div class="panel-title">⚙️ Parâmetros Ventilatórios</div>
+
+      <div class="mode-selector">
+        <button class="mode-btn active" onclick="setMode('VCV')" id="modeVCV">VCV<br><small>Volume Controlado</small></button>
+        <button class="mode-btn" onclick="setMode('PCV')" id="modePCV">PCV<br><small>Pressão Controlada</small></button>
+        <button class="mode-btn" onclick="setMode('PSV')" id="modePSV">PSV<br><small>Pressão Suporte</small></button>
+        <button class="mode-btn" onclick="setMode('SIMV')" id="modeSIMV">SIMV<br><small>Mandatório Intermitente</small></button>
+      </div>
+
+      <div class="control-group">
+        <div class="control-label"><span>FiO₂ (%)</span><span id="valFiO2">40</span></div>
+        <input type="range" id="FiO2" min="21" max="100" value="40" oninput="updateParam('FiO2', this.value)">
+      </div>
+
+      <div class="control-group">
+        <div class="control-label"><span>Volume Corrente (mL)</span><span id="valVt">450</span></div>
+        <input type="range" id="Vt" min="200" max="800" value="450" oninput="updateParam('Vt', this.value)">
+      </div>
+
+      <div class="control-group">
+        <div class="control-label"><span>Frequência Respiratória (rpm)</span><span id="valRR">12</span></div>
+        <input type="range" id="RR" min="4" max="40" value="12" oninput="updateParam('RR', this.value)">
+      </div>
+
+      <div class="control-group">
+        <div class="control-label"><span>PEEP (cmH₂O)</span><span id="valPEEP">5</span></div>
+        <input type="range" id="PEEP" min="0" max="20" value="5" oninput="updateParam('PEEP', this.value)">
+      </div>
+
+      <div class="control-group">
+        <div class="control-label"><span>Pressão de Suporte (cmH₂O)</span><span id="valPS">10</span></div>
+        <input type="range" id="PS" min="5" max="30" value="10" oninput="updateParam('PS', this.value)">
+      </div>
+
+      <div class="control-group">
+        <div class="control-label"><span>Relação I:E</span><span id="valIE">1:2</span></div>
+        <input type="range" id="IE" min="1" max="4" value="2" oninput="updateParam('IE', this.value)">
+      </div>
+
+      <div class="panel-title" style="margin-top: 20px;">🚨 Alarmes</div>
+      <div class="alarm-list" id="alarmList">
+        <div class="alarm-item alarm-info">
+          <span class="alarm-icon">ℹ️</span>
+          <span>Sistema desligado. Pressione LIGAR para iniciar.</span>
+        </div>
+      </div>
+
+      <div class="accessories-grid">
+        <div class="accessory" onclick="toggleAccessory('nebulizer')" id="accNebulizer">
+          <div class="accessory-icon">💨</div><div>Nebulizador</div>
+        </div>
+        <div class="accessory" onclick="toggleAccessory('filter')" id="accFilter">
+          <div class="accessory-icon">🦠</div><div>Filtro HME</div>
+        </div>
+        <div class="accessory" onclick="toggleAccessory('humidifier')" id="accHumidifier">
+          <div class="accessory-icon">💧</div><div>Umidificador</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // =========================
+  // Variáveis Globais
+  // =========================
+  let systemState = 'off'; // 'off', 'standby', 'ventilating'
+  let ventilationRunning = false;
+  let ventilationPaused = false;
+  let currentMode = 'VCV';
+  let currentCase = 'normal';
+  let animationId;
+  let alarmTimer = null;
+  let alarmTimeLeft = 60;
+  let activeAlarm = null;
+
+  // Paciente
+  let patient = {
+    hr: 75, spo2: 98, bpSys: 120, bpDia: 80, rr: 16, etco2: 35,
+    compliance: 50, resistance: 10, peepIntrinsic: 0
+  };
+
+  // Ventilador
+  let ventParams = {
+    FiO2: 40, Vt: 450, RR: 12, PEEP: 5, PS: 10, IE: 2, Trigger: 3,
+    Ppeak: 0, Pplat: 0
+  };
+
+  // Gráficos
+  let graphData = {
+    pressure: new Array(200).fill(0),
+    volume: new Array(200).fill(0),
+    flow: new Array(200).fill(0),
+    capno: new Array(200).fill(0)
+  };
+
+  const cases = {
+    normal: {
+      compliance: 50, resistance: 10, hr: 75, spo2: 98, rr: 16, etco2: 35,
+      description: "Paciente com parâmetros normais",
+      solutions: {
+        hypoxemia: ["Aumentar FiO₂", "Verificar posicionamento do tubo", "Aumentar PEEP"],
+        hypercapnia: ["Aumentar volume corrente", "Aumentar frequência respiratória", "Verificar vazamentos"]
+      }
+    },
+    copd: {
+      compliance: 40, resistance: 25, hr: 95, spo2: 92, rr: 24, etco2: 48, peepIntrinsic: 8,
+      description: "DPOC - Auto-PEEP presente",
+      solutions: {
+        highPressure: ["Reduzir volume corrente", "Aumentar tempo expiratório", "Reduzir FR", "Verificar auto-PEEP"],
+        hypoxemia: ["Aumentar FiO₂ gradualmente", "Aplicar PEEP externa", "Broncodilatadores"]
+      }
+    },
+    ards: {
+      compliance: 20, resistance: 12, hr: 110, spo2: 88, rr: 32, etco2: 42,
+      description: "SDRA - Complacência severamente reduzida",
+      solutions: {
+        hypoxemia: ["Aumentar PEEP progressivamente", "Manobra de recrutamento", "Posição prona", "Aumentar FiO₂"],
+        highPressure: ["Reduzir Vt para 6ml/kg", "Aumentar sedação", "Verificar pneumotórax"]
+      }
+    },
+    obesity: {
+      compliance: 30, resistance: 15, hr: 85, spo2: 94, rr: 20, etco2: 38,
+      description: "Obesidade - Restritivo",
+      solutions: {
+        hypoxemia: ["Aumentar PEEP", "Manobra de recrutamento", "Posição semi-sentada"],
+        hypercapnia: ["Aumentar FR", "Aumentar Vt cuidadosamente"]
+      }
+    },
+    pneumothorax: {
+      compliance: 15, resistance: 20, hr: 130, spo2: 85, rr: 35, etco2: 50,
+      emergency: true,
+      description: "PNEUMOTÓRAX - Emergência!",
+      solutions: {
+        emergency: ["PARAR ventilação imediatamente", "Desconectar paciente", "Solicitar drenagem de tórax URGENTE", "Preparar agulha para descompressão"]
+      }
+    }
+  };
+
+  // =========================
+  // Inicialização
+  // =========================
+  document.addEventListener('DOMContentLoaded', () => {
+    initGraphs();
+    updateClock();
+    setInterval(updateClock, 1000);
+    updateSystemState();
+    updatePatientDisplay();
+  });
+
+  function updateClock() {
+    const now = new Date();
+    document.getElementById('clock').textContent = now.toLocaleTimeString();
+  }
+
+  // =========================
+  // Power
+  // =========================
+  function powerOn() {
+    systemState = 'standby';
+    ventilationRunning = false;
+    ventilationPaused = false;
+    updateSystemState();
+    addAlarm('info', 'Sistema LIGADO. Modo STANDBY ativado. Ventilador pronto para uso.');
+    loadCase('normal');
+  }
+
+  function powerOff() {
+    if (ventilationRunning) {
+      ventilationRunning = false;
+      ventilationPaused = false;
+      cancelAnimationFrame(animationId);
+    }
+
+    clearAlarmTimer();
+    document.getElementById('alarmBanner').style.display = 'none';
+
+    systemState = 'off';
+    updateSystemState();
+
+    graphData.pressure.fill(0);
+    graphData.volume.fill(0);
+    graphData.flow.fill(0);
+    graphData.capno.fill(0);
+    updateGraphs();
+
+    document.getElementById('lungLeft').classList.remove('inflating');
+    document.getElementById('lungRight').classList.remove('inflating');
+
+    addAlarm('info', 'Sistema DESLIGADO.');
+  }
+
+  function updateSystemState() {
+    const grid = document.getElementById('mainGrid');
+    const led = document.getElementById('powerLed');
+    const status = document.getElementById('powerStatus');
+    const modeDisplay = document.getElementById('modeDisplay');
+    const standbyNotice = document.getElementById('standbyNotice');
+
+    grid.classList.remove('powered-on', 'standby', 'ventilating');
+    led.classList.remove('on', 'standby');
+    modeDisplay.classList.remove('standby', 'ventilating', 'off');
+    standbyNotice.classList.remove('show');
+
+    const btnPowerOn = document.getElementById('btnPowerOn');
+    const btnPowerOff = document.getElementById('btnPowerOff');
+    const btnStandby = document.getElementById('btnStandby');
+
+    if (systemState === 'off') {
+      status.textContent = 'DESLIGADO';
+      modeDisplay.textContent = '⭕ DESLIGADO';
+      modeDisplay.classList.add('off');
+
+      btnPowerOn.disabled = false;
+      btnPowerOff.disabled = true;
+
+      btnStandby.disabled = true;
+      btnStandby.textContent = '⏸ MODO STANDBY';
+
+      document.getElementById('btnVent').disabled = true;
+      document.getElementById('btnEmergency').disabled = true;
+      document.getElementById('btnPause').disabled = true;
+      document.getElementById('btnCalibrate').disabled = true;
+
+    } else if (systemState === 'standby') {
+      grid.classList.add('powered-on', 'standby');
+      led.classList.add('standby');
+      status.textContent = 'STANDBY';
+      modeDisplay.textContent = '⏸ STANDBY';
+      modeDisplay.classList.add('standby');
+      standbyNotice.classList.add('show');
+
+      btnPowerOn.disabled = true;
+      btnPowerOff.disabled = false;
+
+      btnStandby.disabled = false;
+      btnStandby.textContent = '⏸ MANTER STANDBY';
+
+      document.getElementById('btnVent').disabled = false;
+      document.getElementById('btnEmergency').disabled = false;
+      document.getElementById('btnPause').disabled = true;
+      document.getElementById('btnCalibrate').disabled = false;
+
+    } else if (systemState === 'ventilating') {
+      grid.classList.add('powered-on', 'ventilating');
+      led.classList.add('on');
+      status.textContent = 'VENTILANDO';
+      modeDisplay.textContent = '▶ VENTILANDO';
+      modeDisplay.classList.add('ventilating');
+
+      btnPowerOn.disabled = true;
+      btnPowerOff.disabled = false;
+
+      btnStandby.disabled = false;
+      btnStandby.textContent = '⏸ VOLTAR PARA STANDBY';
+
+      document.getElementById('btnVent').disabled = false;
+      document.getElementById('btnEmergency').disabled = false;
+      document.getElementById('btnPause').disabled = false;
+      document.getElementById('btnCalibrate').disabled = false;
+    }
+  }
+
+  function toggleStandby() {
+    if (systemState === 'standby') {
+      addAlarm('info', 'Sistema já está em modo STANDBY.');
+      return;
+    }
+
+    if (systemState === 'ventilating') {
+      // voltar para standby
+      ventilationRunning = false;
+      ventilationPaused = false;
+      cancelAnimationFrame(animationId);
+
+      document.getElementById('btnVent').textContent = '▶ INICIAR VENTILAÇÃO';
+      document.getElementById('btnVent').classList.remove('btn-danger');
+      document.getElementById('btnVent').classList.add('btn-success');
+
+      clearAlarmTimer();
+      systemState = 'standby';
+      updateSystemState();
+      addAlarm('info', 'Ventilação interrompida. Sistema em STANDBY.');
+    }
+  }
+
+  function restartSystem() {
+    if (!confirm('Deseja reiniciar o sistema? Todos os parâmetros serão resetados.')) return;
+
+    if (ventilationRunning) {
+      ventilationRunning = false;
+      ventilationPaused = false;
+      cancelAnimationFrame(animationId);
+    }
+
+    const currentState = systemState;
+
+    ventParams = { FiO2: 40, Vt: 450, RR: 12, PEEP: 5, PS: 10, IE: 2, Trigger: 3, Ppeak: 0, Pplat: 0 };
+
+    document.getElementById('FiO2').value = 40;
+    document.getElementById('Vt').value = 450;
+    document.getElementById('RR').value = 12;
+    document.getElementById('PEEP').value = 5;
+    document.getElementById('PS').value = 10;
+    document.getElementById('IE').value = 2;
+
+    document.getElementById('valFiO2').textContent = '40';
+    document.getElementById('valVt').textContent = '450';
+    document.getElementById('valRR').textContent = '12';
+    document.getElementById('valPEEP').textContent = '5';
+    document.getElementById('valPS').textContent = '10';
+    document.getElementById('valIE').textContent = '1:2';
+
+    graphData.pressure.fill(0);
+    graphData.volume.fill(0);
+    graphData.flow.fill(0);
+    graphData.capno.fill(0);
+    updateGraphs();
+
+    clearAlarmTimer();
+    document.getElementById('alarmList').innerHTML = `
+      <div class="alarm-item alarm-info">
+        <span class="alarm-icon">ℹ️</span>
+        <span>Sistema reiniciado. Parâmetros resetados.</span>
+      </div>
+    `;
+
+    addAlarm('info', 'Sistema reiniciado com sucesso.');
+
+    systemState = currentState;
+    updateSystemState();
+  }
+
+  function restartGame() {
+    document.getElementById('gameOverBanner').style.display = 'none';
+    powerOff();
+
+    setTimeout(() => {
+      powerOn();
+      const caseKeys = Object.keys(cases);
+      const randomCase = caseKeys[Math.floor(Math.random() * caseKeys.length)];
+      loadCase(randomCase);
+      addAlarm('info', 'Novo caso clínico carregado. Boa sorte!');
+    }, 800);
+  }
+
+  // =========================
+  // Gráficos
+  // =========================
+  function initGraphs() {
+    const graphs = ['pressureGraph', 'volumeGraph', 'flowGraph', 'capnoGraph'];
+    graphs.forEach(id => {
+      const canvas = document.getElementById(id);
+      canvas.width = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+    });
+    updateGraphs();
+  }
+
+  function updateGraphs() {
+    drawGraph('pressureGraph', graphData.pressure, '#4fc3f7', 0, 50);
+    drawGraph('volumeGraph', graphData.volume, '#69f0ae', 0, 600);
+    drawGraph('flowGraph', graphData.flow, '#ffd740', -60, 60);
+    drawGraph('capnoGraph', graphData.capno, '#ff5252', 0, 60);
+  }
+
+  function drawGraph(canvasId, data, color, min, max) {
+    const canvas = document.getElementById(canvasId);
+    const ctx = canvas.getContext('2d');
+    const width = canvas.width;
+    const height = canvas.height;
+
+    ctx.clearRect(0, 0, width, height);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+
+    const step = width / data.length;
+    const range = max - min;
+
+    data.forEach((value, index) => {
+      const x = index * step;
+      const y = height - ((value - min) / range) * height;
+      if (index === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+
+    ctx.stroke();
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 5; i++) {
+      const y = (height / 5) * i;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(width, y);
+      ctx.stroke();
+    }
+  }
+
+  // =========================
+  // Controles
+  // =========================
+  function updateParam(param, value) {
+    ventParams[param] = parseFloat(value);
+
+    if (param === 'IE') {
+      document.getElementById('valIE').textContent = `1:${value}`;
+    } else {
+      const el = document.getElementById(`val${param}`);
+      if (el) el.textContent = value;
+    }
+
+    if (systemState === 'ventilating' && !ventilationPaused) checkAlarms();
+  }
+
+  function setMode(mode) {
+    if (systemState === 'off') { addAlarm('info', 'Sistema desligado. Pressione LIGAR primeiro.'); return; }
+    currentMode = mode;
+    document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+    document.getElementById(`mode${mode}`).classList.add('active');
+    addAlarm('info', `Modo alterado para ${mode}`);
+  }
+
+  function loadCase(caseName) {
+    currentCase = caseName;
+    const caseData = cases[caseName];
+
+    patient.compliance = caseData.compliance;
+    patient.resistance = caseData.resistance;
+    patient.hr = caseData.hr;
+    patient.spo2 = caseData.spo2;
+    patient.rr = caseData.rr;
+    patient.etco2 = caseData.etco2;
+    patient.peepIntrinsic = caseData.peepIntrinsic || 0;
+
+    updatePatientDisplay();
+    addAlarm('info', `Caso clínico carregado: ${caseData.description}`);
+
+    if (caseData.emergency) triggerEmergency('Pneumotórax detectado! Queda súbita de complacência!');
+  }
+
+  function updatePatientDisplay() {
+    document.getElementById('hrValue').textContent = patient.hr;
+    document.getElementById('spo2Value').textContent = patient.spo2;
+    document.getElementById('bpValue').textContent = `${patient.bpSys}/${patient.bpDia}`;
+    document.getElementById('rrValue').textContent = patient.rr;
+    document.getElementById('etco2Value').textContent = patient.etco2;
+    document.getElementById('displayCompliance').textContent = patient.compliance;
+
+    const status = patient.spo2 < 90 ? 'CRÍTICO - Hipoxemia' :
+                   patient.spo2 < 94 ? 'Atenção - Hipoxemia leve' :
+                   'Estável';
+    document.getElementById('patientStatus').innerHTML = `<strong>Status:</strong> ${status}`;
+  }
+
+  // =========================
+  // Ventilação
+  // =========================
+  function toggleVentilation() {
+    if (systemState === 'off') { addAlarm('info', 'Sistema desligado. Pressione LIGAR primeiro.'); return; }
+
+    ventilationRunning = !ventilationRunning;
+    const btn = document.getElementById('btnVent');
+
+    if (ventilationRunning) {
+      systemState = 'ventilating';
+      updateSystemState();
+
+      btn.textContent = '⏹ PARAR VM';
+      btn.classList.remove('btn-success');
+      btn.classList.add('btn-danger');
+
+      startVentilationLoop();
+      addAlarm('success', 'Ventilação iniciada. Paciente conectado.');
+    } else {
+      ventilationPaused = false;
+      cancelAnimationFrame(animationId);
+
+      btn.textContent = '▶ INICIAR VENTILAÇÃO';
+      btn.classList.remove('btn-danger');
+      btn.classList.add('btn-success');
+
+      // ✅ volta para standby ao parar
+      systemState = 'standby';
+      updateSystemState();
+
+      clearAlarmTimer();
+      addAlarm('info', 'Ventilação parada. Sistema em STANDBY.');
+    }
+  }
+
+  function startVentilationLoop() {
+    let breathTime = 0;
+
+    function loop() {
+      if (!ventilationRunning || ventilationPaused || systemState !== 'ventilating') return;
+
+      const breathDuration = 60 / ventParams.RR;
+      const inspiratoryTime = breathDuration / (1 + ventParams.IE);
+
+      breathTime += 0.05;
+      if (breathTime > breathDuration) breathTime = 0;
+
+      const isInspiration = breathTime < inspiratoryTime;
+      const progress = Math.min(1, breathTime / inspiratoryTime);
+
+      let pressure = ventParams.PEEP;
+      let flow = 0;
+      let volume = 0;
+
+      if (currentMode === 'VCV') {
+        if (isInspiration) {
+          flow = (ventParams.Vt / inspiratoryTime) * Math.sin(progress * Math.PI);
+          volume = ventParams.Vt * (1 - Math.cos(progress * Math.PI)) / 2;
+          pressure = ventParams.PEEP + (volume / patient.compliance) + (flow * patient.resistance / 60);
+        } else {
+          flow = -20 * Math.sin((breathTime - inspiratoryTime) / (breathDuration - inspiratoryTime) * Math.PI);
+          volume = Math.max(0, graphData.volume[graphData.volume.length - 1] - 8);
+          pressure = Math.max(ventParams.PEEP, pressure * 0.98);
+        }
+      } else if (currentMode === 'PCV') {
+        const targetPressure = ventParams.PEEP + ventParams.PS;
+        if (isInspiration) {
+          pressure = ventParams.PEEP + (targetPressure - ventParams.PEEP) * (1 - Math.exp(-progress * 3));
+          flow = (pressure - ventParams.PEEP) * patient.compliance * 2 * Math.exp(-progress * 2);
+          volume = Math.max(0, (pressure - ventParams.PEEP) * patient.compliance);
+        } else {
+          flow = -18 * Math.sin((breathTime - inspiratoryTime) / (breathDuration - inspiratoryTime) * Math.PI);
+          volume = Math.max(0, graphData.volume[graphData.volume.length - 1] - 10);
+          pressure = ventParams.PEEP;
+        }
+      }
+
+      graphData.pressure.shift(); graphData.pressure.push(pressure);
+      graphData.volume.shift();   graphData.volume.push(volume);
+      graphData.flow.shift();     graphData.flow.push(flow);
+      graphData.capno.shift();    graphData.capno.push(isInspiration ? 0 : patient.etco2 * Math.sin((breathTime - inspiratoryTime) * 4));
+
+      const lungLeft = document.getElementById('lungLeft');
+      const lungRight = document.getElementById('lungRight');
+      if (isInspiration) { lungLeft.classList.add('inflating'); lungRight.classList.add('inflating'); }
+      else { lungLeft.classList.remove('inflating'); lungRight.classList.remove('inflating'); }
+
+      ventParams.Ppeak = Math.max(ventParams.Ppeak, pressure);
+      if (isInspiration && progress > 0.8) ventParams.Pplat = pressure;
+
+      document.getElementById('displayVt').textContent = Math.round(volume);
+      document.getElementById('displayPpeak').textContent = Math.round(ventParams.Ppeak);
+      document.getElementById('displayPplat').textContent = Math.round(ventParams.Pplat);
+
+      updateGraphs();
+      checkAlarms();
+
+      if (breathTime < 0.08) ventParams.Ppeak = ventParams.PEEP;
+
+      animationId = requestAnimationFrame(loop);
+    }
+
+    loop();
+  }
+
+  // =========================
+  // Alarmes
+  // =========================
+  function checkAlarms() {
+    if (systemState !== 'ventilating' || ventilationPaused) return;
+
+    const alarms = [];
+
+    if (ventParams.FiO2 < 21) alarms.push({type:'high', msg:'FiO₂ muito baixa', solution:'Aumentar FiO₂ para no mínimo 21%'});
+    if (ventParams.FiO2 > 60) alarms.push({type:'high', msg:'FiO₂ elevada - Risco de toxicidade', solution:'Reduzir FiO₂ para abaixo de 60%'});
+    if (ventParams.Vt > 480) alarms.push({type:'high', msg:'Vt elevado - Risco de volutrauma', solution:'Reduzir volume corrente para 6-8 ml/kg'});
+    if (ventParams.Vt < 360) alarms.push({type:'low', msg:'Vt baixo - Hipoventilação', solution:'Aumentar volume corrente'});
+    if (ventParams.PEEP > 15) alarms.push({type:'high', msg:'PEEP elevada - Risco de barotrauma', solution:'Reduzir PEEP gradualmente'});
+    if (ventParams.Ppeak > 35) alarms.push({type:'high', msg:'Pressão de pico elevada', solution:'Verificar obstrução, reduzir Vt, aumentar sedação'});
+    if (patient.spo2 < 90) alarms.push({type:'high', msg:'Hipoxemia crítica', solution:'Aumentar FiO₂, verificar tubo, aumentar PEEP'});
+    if (patient.etco2 > 45) alarms.push({type:'high', msg:'Hipercapnia', solution:'Aumentar ventilação minuto (FR ou Vt)'});
+    if (patient.compliance < 25) alarms.push({type:'high', msg:'Complacência muito baixa', solution:'Verificar pneumotórax, atelectasia, edema'});
+
+    if (alarms.length > 0) {
+      const alarm = alarms[0];
+      if (activeAlarm !== alarm.msg) startAlarmTimer(alarm.msg, alarm.type, alarm.solution);
+      showAlarmBanner(alarm.msg);
+      addAlarm(alarm.type, alarm.msg);
+    } else {
+      clearAlarmTimer();
+    }
+  }
+
+  function startAlarmTimer(msg, type, solution) {
+    clearAlarmTimer();
+
+    activeAlarm = msg;
+    alarmTimeLeft = 60;
+
+    const banner = document.getElementById('alarmBanner');
+    const text = document.getElementById('alarmText');
+    const timer = document.getElementById('alarmTimer');
+
+    text.textContent = msg;
+    banner.style.display = 'block';
+    timer.style.color = '#fff';
+    timer.style.fontWeight = 'normal';
+    timer.textContent = alarmTimeLeft;
+
+    alarmTimer = setInterval(() => {
+      alarmTimeLeft--;
+      timer.textContent = alarmTimeLeft;
+
+      if (alarmTimeLeft <= 10) {
+        timer.style.color = '#ff0';
+        timer.style.fontWeight = 'bold';
+      }
+
+      if (alarmTimeLeft <= 0) {
+        clearInterval(alarmTimer);
+        triggerGameOver(msg, solution);
+      }
+    }, 1000);
+  }
+
+  function clearAlarmTimer() {
+    if (alarmTimer) {
+      clearInterval(alarmTimer);
+      alarmTimer = null;
+    }
+    activeAlarm = null;
+    alarmTimeLeft = 60;
+    document.getElementById('alarmBanner').style.display = 'none';
+  }
+
+  function showAlarmBanner(msg) {
+    const banner = document.getElementById('alarmBanner');
+    document.getElementById('alarmText').textContent = msg; // ✅ garante texto sempre
+    if (banner.style.display === 'none') banner.style.display = 'block';
+  }
+
+  function addAlarm(type, msg) {
+    const list = document.getElementById('alarmList');
+    const item = document.createElement('div');
+
+    item.className = `alarm-item alarm-${type}`;
+    const icon = type === 'high' ? '🔴' : type === 'low' ? '🟡' : type === 'success' ? '🟢' : '🔵';
+
+    item.innerHTML = `<span class="alarm-icon">${icon}</span><span>${msg}</span>`;
+    list.insertBefore(item, list.firstChild);
+
+    if (list.children.length > 10) list.removeChild(list.lastChild);
+  }
+
+  function triggerGameOver(alarmMsg, solution) {
+    ventilationRunning = false;
+    ventilationPaused = false;
+    cancelAnimationFrame(animationId);
+
+    const banner = document.getElementById('gameOverBanner');
+    const solutionList = document.getElementById('solutionList');
+
+    const solutions = Array.isArray(solution) ? solution : [solution];
+    solutionList.innerHTML = solutions.map(s => `<li>${s}</li>`).join('');
+
+    banner.style.display = 'block';
+    document.getElementById('alarmBanner').style.display = 'none';
+
+    document.getElementById('btnVent').disabled = true;
+    document.getElementById('btnEmergency').disabled = true;
+    document.getElementById('btnPause').disabled = true;
+
+    addAlarm('high', 'FIM DE JOGO: Alarme não corrigido a tempo!');
+  }
+
+  function triggerEmergency(msg) {
+    showAlarmBanner(msg);
+    addAlarm('high', `EMERGÊNCIA: ${msg}`);
+    document.body.style.animation = 'pulse 0.5s 3';
+    setTimeout(() => { document.body.style.animation = ''; }, 1500);
+  }
+
+  // =========================
+  // Calibração
+  // =========================
+  function startCalibration() {
+    if (systemState === 'off') { addAlarm('info', 'Sistema desligado. Pressione LIGAR primeiro.'); return; }
+
+    const modal = document.createElement('div');
+    modal.className = 'calibration-modal';
+    modal.style.display = 'flex';
+    modal.innerHTML = `
+      <div class="calibration-content">
+        <h2>🔧 Calibração do Sistema</h2>
+        <p>Calibrando sensores de pressão e fluxo...</p>
+        <div class="progress-bar"><div class="progress-fill" id="calibrationProgress"></div></div>
+        <div id="calibrationStatus">Inicializando...</div>
+        <button class="btn btn-primary" style="margin-top: 20px; width:100%;" onclick="this.closest('.calibration-modal').remove()">Fechar</button>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    const progress = modal.querySelector('#calibrationProgress');
+    const status = modal.querySelector('#calibrationStatus');
+
+    const steps = [
+      'Calibrando sensor de pressão...',
+      'Calibrando sensor de fluxo...',
+      'Testando válvulas...',
+      'Verificando vazamentos...',
+      'Calibração completa!'
+    ];
+
+    let step = 0;
+    const interval = setInterval(() => {
+      step++;
+      progress.style.width = `${step * 20}%`;
+      status.textContent = steps[step - 1];
+
+      if (step >= 5) {
+        clearInterval(interval);
+        addAlarm('success', 'Sistema calibrado com sucesso');
+      }
+    }, 800);
+  }
+
+  // =========================
+  // Acessórios
+  // =========================
+  function toggleAccessory(acc) {
+    if (systemState === 'off') { addAlarm('info', 'Sistema desligado. Pressione LIGAR primeiro.'); return; }
+
+    const element = document.getElementById(`acc${acc.charAt(0).toUpperCase() + acc.slice(1)}`);
+    if (!element) return;
+
+    element.classList.toggle('active');
+    addAlarm('info', element.classList.contains('active') ? `${acc} ativado` : `${acc} desativado`);
+  }
+
+  // =========================
+  // Emergência / Pausa
+  // =========================
+  function emergencyStop() {
+    if (systemState === 'off') return;
+
+    ventilationRunning = false;
+    ventilationPaused = false;
+    cancelAnimationFrame(animationId);
+
+    document.getElementById('btnVent').textContent = '▶ INICIAR VENTILAÇÃO';
+    document.getElementById('btnVent').classList.remove('btn-danger');
+    document.getElementById('btnVent').classList.add('btn-success');
+
+    graphData.pressure.fill(ventParams.PEEP);
+    graphData.volume.fill(0);
+    graphData.flow.fill(0);
+    graphData.capno.fill(0);
+    updateGraphs();
+
+    document.getElementById('lungLeft').classList.remove('inflating');
+    document.getElementById('lungRight').classList.remove('inflating');
+
+    clearAlarmTimer();
+    triggerEmergency('PARADA DE EMERGÊNCIA ACIONADA');
+    addAlarm('high', 'Ventilação interrompida por emergência');
+
+    systemState = 'standby';
+    updateSystemState();
+  }
+
+  function togglePause() {
+    if (systemState !== 'ventilating') return;
+
+    ventilationPaused = !ventilationPaused;
+    if (ventilationPaused) {
+      addAlarm('info', 'Ventilação pausada');
+      document.getElementById('btnPause').textContent = '▶ Retomar';
+      cancelAnimationFrame(animationId);
+    } else {
+      addAlarm('info', 'Ventilação retomada');
+      document.getElementById('btnPause').textContent = '⏸ Pausar';
+      startVentilationLoop();
+    }
+  }
+
+  window.addEventListener('resize', initGraphs);
+</script>
+</body>
+</html>

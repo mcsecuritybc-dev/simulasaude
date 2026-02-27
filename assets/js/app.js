@@ -7,62 +7,22 @@
   const state = {
     view: "home",
     gameTab: "memory",
-
     stats: { answered: 0, correct: 0, wins: 0 },
 
-    quiz: {
-      areaKey: null,
-      list: [],
-      index: 0,
-      score: 0,
-      locked: false,
-      targetCount: 10,
-      mode: "random",
-    },
-
+    quiz: { areaKey: null, list: [], index: 0, score: 0, locked: false, targetCount: 10, mode: "random" },
     caseCurrent: null,
 
-    sim: {
-      current: null,
-      step: 0,
-      locked: false,
-      hint: "",
-    },
+    sim: { current: null, step: 0, locked: false, hint: "" },
 
-    memory: {
-      deck: [],
-      first: null,
-      second: null,
-      lock: false,
-      matched: 0,
-      sizePairs: 8,
-      timerSec: 180,
-      timerId: null,
-    },
+    memory: { deck: [], first: null, second: null, lock: false, matched: 0, sizePairs: 8, timerSec: 180, timerId: null },
 
-    hang: {
-      word: "",
-      hint: "",
-      guessed: new Set(),
-      wrong: 0,
-      maxWrong: 6,
-      active: false,
-    },
+    hang: { word: "", hint: "", guessed: new Set(), wrong: 0, maxWrong: 6, active: false },
 
-    ws: {
-      size: 12,
-      grid: [],
-      words: [],
-      found: new Set(),
-      selected: [],
-      timerSec: 180,
-      timerId: null,
-    },
+    ws: { size: 12, grid: [], words: [], found: new Set(), selected: [], timerSec: 180, timerId: null },
   };
 
   // ===== UTIL =====
   const saveStats = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(state.stats));
-
   const loadStats = () => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -89,6 +49,52 @@
     const m = String(Math.floor(s / 60)).padStart(2, "0");
     const r = String(s % 60).padStart(2, "0");
     return `${m}:${r}`;
+  };
+
+  const isMobile = () => window.matchMedia("(max-width: 980px)").matches;
+
+  // ===== SIDEBAR / BACKDROP =====
+  const ensureBackdrop = () => {
+    let b = $("#backdrop");
+    if (b) return b;
+    b = document.createElement("div");
+    b.id = "backdrop";
+    b.className = "backdrop";
+    document.body.appendChild(b);
+    b.addEventListener("click", () => closeSidebar());
+    return b;
+  };
+
+  const openSidebar = () => {
+    const sb = $("#sidebar");
+    const bd = ensureBackdrop();
+    sb.classList.remove("collapsed");
+    if (isMobile()) bd.classList.add("show");
+  };
+
+  const closeSidebar = () => {
+    const sb = $("#sidebar");
+    const bd = ensureBackdrop();
+    if (isMobile()) sb.classList.add("collapsed");
+    bd.classList.remove("show");
+  };
+
+  const toggleSidebar = () => {
+    const sb = $("#sidebar");
+    if (sb.classList.contains("collapsed")) openSidebar();
+    else closeSidebar();
+  };
+
+  const applySidebarMode = () => {
+    const sb = $("#sidebar");
+    const bd = ensureBackdrop();
+    if (isMobile()) {
+      sb.classList.add("collapsed"); // ✅ no celular começa fechado
+      bd.classList.remove("show");
+    } else {
+      sb.classList.remove("collapsed"); // ✅ no desktop fica aberto
+      bd.classList.remove("show");
+    }
   };
 
   // ===== NAV/VIEWS =====
@@ -119,6 +125,9 @@
 
     if (key === "qr") updateQRLink();
     if (key === "games") setGameTab(state.gameTab);
+
+    // ✅ ao navegar no celular, fecha o menu para liberar tela
+    if (isMobile()) closeSidebar();
   };
 
   // ===== STATS UI =====
@@ -249,10 +258,9 @@
     saveStats();
     renderStats();
 
-    // SEMPRE MOSTRA EMBASAMENTO (objetivo)
     const explanation = (q.explain && String(q.explain).trim().length > 0)
       ? q.explain
-      : "Justificativa não disponível para esta questão (adicione em assets/js/data.js → campo explain).";
+      : "Justificativa não disponível para esta questão (adicione o campo explain em assets/js/data.js).";
 
     const fb = $("#quizFeedback");
     fb.className = fbClass;
@@ -309,7 +317,7 @@
     fb.className = ok ? "feedback good" : "feedback bad";
     fb.textContent = ok
       ? "Conduta adequada para o cenário."
-      : "Conduta inadequada para o cenário. Reflita em segurança do paciente e sequência do protocolo.";
+      : "Conduta inadequada. Reavalie segurança do paciente e sequência do protocolo.";
     fb.classList.remove("hidden");
 
     state.stats.answered += 1;
@@ -357,7 +365,6 @@
     const prof = $("#simProf").value;
 
     let pool = window.SAV_DATA.SIMS;
-
     if (area !== "Todas") pool = pool.filter(s => s.area === area);
     if (level !== "Todos") pool = pool.filter(s => s.level === level);
     if (prof !== "Todas") pool = pool.filter(s => s.profession === prof);
@@ -462,10 +469,7 @@
   };
 
   // ===== MEMORY =====
-  const stopMemoryTimer = () => {
-    if (state.memory.timerId) clearInterval(state.memory.timerId);
-    state.memory.timerId = null;
-  };
+  const stopMemoryTimer = () => { if (state.memory.timerId) clearInterval(state.memory.timerId); state.memory.timerId = null; };
 
   const startMemoryTimer = () => {
     stopMemoryTimer();
@@ -482,7 +486,7 @@
         state.stats.wins += 1;
         saveStats();
         renderStats();
-        startMemory(); // nova rodada automática
+        startMemory();
       }
     }, 1000);
   };
@@ -493,19 +497,11 @@
 
     const deck = [];
     chosen.forEach((p, idx) => {
-      deck.push({
-        id: "p" + idx, type: "term",
-        text: p.term, emoji: p.emoji || "🏥",
-        revealed: false, matched: false
-      });
-      deck.push({
-        id: "p" + idx, type: "def",
-        text: p.def, emoji: p.emoji || "🏥",
-        revealed: false, matched: false
-      });
+      deck.push({ id: "p" + idx, type: "term", text: p.term, emoji: p.emoji || "🏥", revealed: false, matched: false });
+      deck.push({ id: "p" + idx, type: "def", text: p.def, emoji: p.emoji || "🏥", revealed: false, matched: false });
     });
 
-    state.memory.deck = shuffle(deck); // ROTATIVIDADE garantida
+    state.memory.deck = shuffle(deck);
     state.memory.first = null;
     state.memory.second = null;
     state.memory.lock = false;
@@ -553,45 +549,34 @@
     card.revealed = true;
     renderMemory();
 
-    if (state.memory.first === null) {
-      state.memory.first = index;
-      return;
-    }
+    if (state.memory.first === null) { state.memory.first = index; return; }
 
     state.memory.second = index;
     state.memory.lock = true;
 
     const c1 = state.memory.deck[state.memory.first];
     const c2 = state.memory.deck[state.memory.second];
-
     const isMatch = c1.id === c2.id && c1.type !== c2.type;
 
     setTimeout(() => {
       if (isMatch) {
-        c1.matched = true;
-        c2.matched = true;
+        c1.matched = true; c2.matched = true;
         state.memory.matched += 1;
 
         if (state.memory.matched >= state.memory.sizePairs) {
           $("#memoryInfo").textContent = "Rodada concluída! Nova rodada em seguida.";
-          state.stats.wins += 1;
-          saveStats();
-          renderStats();
-
+          state.stats.wins += 1; saveStats(); renderStats();
           setTimeout(() => startMemory(), 900);
           return;
         } else {
           $("#memoryInfo").textContent = `Acerto. Pares: ${state.memory.matched}/${state.memory.sizePairs}`;
         }
       } else {
-        c1.revealed = false;
-        c2.revealed = false;
+        c1.revealed = false; c2.revealed = false;
         $("#memoryInfo").textContent = "Não combinou. Continue.";
       }
 
-      state.memory.first = null;
-      state.memory.second = null;
-      state.memory.lock = false;
+      state.memory.first = null; state.memory.second = null; state.memory.lock = false;
       renderMemory();
     }, 650);
   };
@@ -605,9 +590,7 @@
 
   const resetMemoryRound = () => {
     state.memory.deck.forEach((c) => { if (!c.matched) c.revealed = false; });
-    state.memory.first = null;
-    state.memory.second = null;
-    state.memory.lock = false;
+    state.memory.first = null; state.memory.second = null; state.memory.lock = false;
     $("#memoryInfo").textContent = "Rodada reiniciada.";
     renderMemory();
   };
@@ -643,9 +626,7 @@
       fb.textContent = "Você acertou!";
       fb.classList.remove("hidden");
 
-      state.stats.wins += 1;
-      saveStats();
-      renderStats();
+      state.stats.wins += 1; saveStats(); renderStats();
       disableKeyboard();
     }
 
@@ -681,12 +662,9 @@
 
     state.hang.guessed.add(L);
 
-    if (state.hang.word.includes(L)) {
-      btn.classList.add("good");
-    } else {
-      btn.classList.add("bad");
-      state.hang.wrong += 1;
-    }
+    if (state.hang.word.includes(L)) btn.classList.add("good");
+    else { btn.classList.add("bad"); state.hang.wrong += 1; }
+
     btn.disabled = true;
     renderHangman();
   };
@@ -700,11 +678,7 @@
   };
 
   // ===== WORDSEARCH =====
-  const stopWsTimer = () => {
-    if (state.ws.timerId) clearInterval(state.ws.timerId);
-    state.ws.timerId = null;
-  };
-
+  const stopWsTimer = () => { if (state.ws.timerId) clearInterval(state.ws.timerId); state.ws.timerId = null; };
   const startWsTimer = () => {
     stopWsTimer();
     state.ws.timerSec = 180;
@@ -713,13 +687,10 @@
     state.ws.timerId = setInterval(() => {
       state.ws.timerSec -= 1;
       $("#wsTimer").textContent = fmtTime(state.ws.timerSec);
-
       if (state.ws.timerSec <= 0) {
         stopWsTimer();
         showWsFeedback("Tempo encerrado. Novo caça-palavras iniciado.", "warn");
-        state.stats.wins += 1;
-        saveStats();
-        renderStats();
+        state.stats.wins += 1; saveStats(); renderStats();
         newWordSearch();
       }
     }, 1000);
@@ -735,10 +706,8 @@
       for (let tries = 0; tries < 80; tries++) {
         const x0 = Math.floor(Math.random() * n);
         const y0 = Math.floor(Math.random() * n);
-
         const x1 = x0 + d.dx * (word.length - 1);
         const y1 = y0 + d.dy * (word.length - 1);
-
         if (x1 < 0 || x1 >= n || y1 < 0 || y1 >= n) continue;
 
         let ok = true;
@@ -775,7 +744,6 @@
   const renderWsGrid = () => {
     const gridEl = $("#wsGrid");
     gridEl.innerHTML = "";
-
     for (let y = 0; y < state.ws.size; y++) {
       for (let x = 0; x < state.ws.size; x++) {
         const cell = document.createElement("button");
@@ -784,7 +752,6 @@
         cell.textContent = state.ws.grid[y][x];
         cell.dataset.x = String(x);
         cell.dataset.y = String(y);
-
         cell.addEventListener("click", () => wsSelectCell(x, y, cell));
         gridEl.appendChild(cell);
       }
@@ -840,9 +807,7 @@
 
       if (state.ws.found.size === state.ws.words.length) {
         showWsFeedback("Você concluiu o caça-palavras! Novo em seguida.", "good");
-        state.stats.wins += 1;
-        saveStats();
-        renderStats();
+        state.stats.wins += 1; saveStats(); renderStats();
         setTimeout(() => newWordSearch(), 1200);
       }
     } else {
@@ -889,12 +854,8 @@
 
   const copyLink = async () => {
     const link = window.location.href;
-    try {
-      await navigator.clipboard.writeText(link);
-      alert("Link copiado.");
-    } catch (e) {
-      alert("Copie manualmente:\n\n" + link);
-    }
+    try { await navigator.clipboard.writeText(link); alert("Link copiado."); }
+    catch (e) { alert("Copie manualmente:\n\n" + link); }
   };
 
   // ===== RESET =====
@@ -908,9 +869,7 @@
 
   // ===== EVENTS =====
   const bindEvents = () => {
-    $("#toggleSidebar").addEventListener("click", () => {
-      $("#sidebar").classList.toggle("collapsed");
-    });
+    $("#toggleSidebar").addEventListener("click", toggleSidebar);
 
     $$(".nav-item").forEach((b) => b.addEventListener("click", () => showView(b.dataset.view)));
     $$("[data-go]").forEach((b) => b.addEventListener("click", () => showView(b.dataset.go)));
@@ -951,6 +910,9 @@
 
     // reset
     $("#btnResetAll").addEventListener("click", resetAll);
+
+    // Ajusta comportamento ao girar tela / mudar tamanho
+    window.addEventListener("resize", applySidebarMode);
   };
 
   // ===== INIT =====
@@ -960,6 +922,7 @@
     renderAreaChips();
     fillQuizAreas();
     fillSimFilters();
+    applySidebarMode();          // ✅ aqui está a correção principal
     showView("home");
     $("#year").textContent = String(new Date().getFullYear());
     bindEvents();

@@ -49,6 +49,10 @@
           <span class="dot"></span> Leitura ECG
         </button>
 
+        <button class="nav-item" data-view="ventilador">
+          <span class="dot"></span> Ventilador Mecânico
+        </button>
+
         <button class="nav-item" data-view="qr">
           <span class="dot"></span> QR Code de Acesso
         </button>
@@ -365,6 +369,26 @@
           </div>
         </div>
 
+        <!-- NOVA VIEW VENTILADOR -->
+<div class="view hidden" id="view-ventilador">
+  <div class="card">
+    <div class="card-title">Simulador de Ventilação Mecânica</div>
+    <div class="card-body">
+      <div class="muted small">
+        Se não abrir, confirme que o arquivo <code>ventilador.html</code> está na mesma pasta do <code>index.html</code>.
+      </div>
+      <div class="hr"></div>
+
+      <div style="width:100%; height:80vh;">
+        <iframe 
+          src="ventilador.html" 
+          style="width:100%; height:100%; border:none; border-radius:12px;"
+          title="Simulador de Ventilação Mecânica">
+        </iframe>
+      </div>
+    </div>
+  </div>
+</div>
         <!-- QR -->
         <div class="view hidden" id="view-qr">
           <div class="card">

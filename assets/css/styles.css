@@ -28,18 +28,19 @@ body{
     radial-gradient(1200px 600px at 20% 0%, rgba(77,179,255,.18), transparent 60%),
     radial-gradient(900px 500px at 90% 10%, rgba(58,230,168,.10), transparent 55%),
     linear-gradient(180deg, #050a14, var(--bg));
+  overflow-x: hidden; /* ✅ evita deslocamento lateral no mobile */
 }
 
-/* GARANTIA de contraste (corrige texto preto em alguns browsers) */
+/* GARANTIA de contraste */
 button, .btn, .nav-item, .opt, select, option, input, textarea {
   color: var(--text) !important;
 }
-select, input, textarea{
-  color-scheme: dark; /* melhora contraste do seletor nativo */
-}
+select, input, textarea{ color-scheme: dark; }
 
+/* Layout base */
 .app{min-height:100%;display:flex}
 
+/* Sidebar (desktop) */
 .sidebar{
   width:340px;
   background: linear-gradient(180deg, rgba(12,27,51,.97), rgba(7,16,31,.95));
@@ -48,15 +49,24 @@ select, input, textarea{
   display:flex;
   flex-direction:column;
   gap:18px;
-  transition: transform .2s ease;
+  transition: transform .22s ease;
 }
 
+/* Classe "collapsed" = escondido (usada no mobile e opcional no desktop) */
 .sidebar.collapsed{
-  transform: translateX(-100%);
-  position:absolute;
-  z-index:50;
-  height:100%;
+  transform: translateX(-110%);
 }
+
+/* Backdrop quando menu abrir no celular */
+.backdrop{
+  position:fixed;
+  inset:0;
+  background: rgba(0,0,0,.55);
+  backdrop-filter: blur(2px);
+  z-index:40;
+  display:none;
+}
+.backdrop.show{ display:block; }
 
 .brand{
   display:flex;
@@ -110,6 +120,7 @@ select, input, textarea{
 .creator-name{font-weight:950;letter-spacing:.3px;font-size:14px}
 .creator-sub{color:var(--muted);font-size:12px;margin-top:2px}
 
+/* Main */
 .main{flex:1;display:flex;flex-direction:column;min-width:0}
 
 .topbar{
@@ -169,6 +180,7 @@ select, input, textarea{
 }
 .card-body{padding:16px}
 
+/* Grids */
 .grid{display:grid;grid-template-columns: 1fr 1fr;gap:16px}
 @media (max-width: 980px){.grid{grid-template-columns:1fr}}
 
@@ -211,6 +223,7 @@ select, input, textarea{
 
 .stats{display:grid;grid-template-columns: 1fr 1fr 1fr;gap:12px}
 @media (max-width: 640px){.stats{grid-template-columns:1fr}}
+
 .stat{
   border:1px solid var(--border);
   border-radius: var(--radius2);
@@ -269,7 +282,7 @@ select option{
   cursor:pointer;
   font-weight:950;
   font-size:15px;
-  color: var(--text) !important; /* reforço */
+  color: var(--text) !important;
 }
 .opt:hover{background: rgba(77,179,255,.12); border-color: rgba(77,179,255,.34)}
 .opt.correct{border-color: rgba(58,230,168,.65); background: rgba(58,230,168,.12)}
@@ -292,8 +305,10 @@ select option{
 .case-meta{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
 .case-text{font-weight:900;line-height:1.45;font-size:15px}
 
+/* Simulações */
 .sim-grid{display:grid;grid-template-columns: 280px 1fr;gap:14px}
 @media (max-width: 900px){.sim-grid{grid-template-columns:1fr}}
+
 .sim-vitals{
   border:1px solid var(--border);
   border-radius: var(--radius);
@@ -313,6 +328,7 @@ select option{
 .vital span{color:var(--muted);font-weight:900}
 .vital b{font-size:16px}
 
+/* Tabs */
 .tabs{display:flex;gap:10px;flex-wrap:wrap}
 .tab{
   border:1px solid var(--border);
@@ -326,7 +342,7 @@ select option{
 .tab:hover{background: rgba(77,179,255,.10); border-color: rgba(77,179,255,.30)}
 .tab.active{background: rgba(77,179,255,.16); border-color: rgba(77,179,255,.38)}
 
-/* MEMÓRIA (mais visível/moderna) */
+/* Memória */
 .memory-grid{display:grid;grid-template-columns: repeat(4, 1fr);gap:12px}
 @media (max-width: 860px){.memory-grid{grid-template-columns: repeat(3, 1fr)}}
 @media (max-width: 520px){.memory-grid{grid-template-columns: repeat(2, 1fr)}}
@@ -363,6 +379,7 @@ select option{
   line-height:1.15;
 }
 
+/* Forca */
 .hangman{display:flex;flex-direction:column;gap:14px;align-items:center}
 .hang-word{font-family:var(--mono); font-size:28px; letter-spacing:3px; font-weight:980}
 .keyboard{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-width:780px}
@@ -379,6 +396,7 @@ select option{
 .key.good{border-color: rgba(58,230,168,.35); background: rgba(58,230,168,.10)}
 .key.bad{border-color: rgba(255,93,123,.35); background: rgba(255,93,123,.10)}
 
+/* QR */
 .qr-wrap{display:grid;grid-template-columns: 240px 1fr; gap:14px; align-items:start}
 @media (max-width: 860px){.qr-wrap{grid-template-columns:1fr}}
 .qr-box{
@@ -391,12 +409,15 @@ select option{
 }
 .qr-meta{display:flex;flex-direction:column;gap:8px}
 
+/* Caça-palavras */
 .ws-wrap{display:grid;grid-template-columns: 1fr 320px;gap:14px;align-items:start}
 @media (max-width: 900px){.ws-wrap{grid-template-columns:1fr}}
 .ws-grid{
   display:grid;
   grid-template-columns: repeat(12, 1fr);
   gap:6px;
+  max-width: 100%;
+  overflow: hidden;
 }
 .ws-cell{
   border:1px solid var(--border);
@@ -446,4 +467,37 @@ select option{
   border:0;
   display:block;
   background:#000;
+}
+
+/* ✅ MOBILE: sidebar vira gaveta */
+@media (max-width: 980px){
+  .sidebar{
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100%;
+    max-width: 86vw;
+    width: 340px;
+    z-index: 50;
+    border-right: 1px solid var(--border);
+    box-shadow: 0 18px 50px rgba(0,0,0,.55);
+  }
+
+  .content{
+    padding: 12px; /* mais espaço útil */
+  }
+
+  .topbar{
+    padding: 12px 12px;
+  }
+
+  .h1{font-size:18px}
+  .h2{font-size:12px}
+}
+
+/* ✅ EXTRA: telas muito estreitas */
+@media (max-width: 420px){
+  .nav-item{font-size:15px}
+  .btn{font-size:14px}
+  .q-text{font-size:18px}
 }

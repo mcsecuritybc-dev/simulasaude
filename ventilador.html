@@ -14,7 +14,7 @@
       min-height: 100vh;
     }
 
-    .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+    .container { max-width: 1400px; margin: 0 auto; padding: calc(12px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left)); }
 
     header {
       background: rgba(0,0,0,0.3);
@@ -348,9 +348,56 @@
       margin-bottom: 20px;
     }
 
-    @media (max-width: 900px) {
+        @media (max-width: 900px) {
       .main-grid { grid-template-columns: 1fr; }
       .control-bar { grid-template-columns: 1fr 1fr; }
+
+      header { flex-wrap: wrap; gap: 12px; }
+      header > div:last-child { flex-wrap: wrap; gap: 12px; justify-content: flex-start; }
+      #clock { min-width: 90px; }
+
+      .graph-container { height: 140px; }
+    }
+
+    /* Mobile: evita cortes, melhora leitura e garante “margens” */
+    @media (max-width: 600px) {
+      .container { padding: calc(10px + env(safe-area-inset-top)) calc(10px + env(safe-area-inset-right)) calc(14px + env(safe-area-inset-bottom)) calc(10px + env(safe-area-inset-left)); }
+      header { padding: 12px; }
+      header h1 { font-size: 1.05em; line-height: 1.2; }
+      header p { font-size: 0.85em !important; }
+
+      /* bloco do relógio + indicadores: quebra em linhas */
+      header > div:last-child { width: 100%; }
+      .power-indicator { padding: 8px 12px; border-radius: 16px; }
+      .mode-display { margin-left: 0; }
+
+      .panel { padding: 14px; }
+      .panel-title { font-size: 1em; }
+
+      .vital-sign { padding: 8px; }
+      .vital-value { font-size: 1.25em; }
+
+      .lung-animation { width: 160px; height: 200px; margin: 10px auto; }
+      .lung { width: 64px; height: 96px; }
+      .lung.left { left: 14px; top: 34px; }
+      .lung.right { right: 14px; top: 34px; }
+      .trachea { width: 18px; height: 50px; }
+
+      .graph-container { height: 120px; padding: 8px; }
+      .graph-label { font-size: 0.75em; }
+
+      .parameter-display { grid-template-columns: 1fr 1fr; gap: 8px; }
+      .param-item { padding: 8px; }
+      .param-value { font-size: 1.15em; }
+
+      .mode-selector { grid-template-columns: 1fr 1fr; gap: 8px; }
+      .mode-btn { padding: 10px 8px; font-size: 0.82em; }
+
+      .accessories-grid { grid-template-columns: 1fr 1fr; }
+      .accessory-icon { font-size: 1.7em; }
+
+      .control-bar { grid-template-columns: 1fr; }
+      .btn { padding: 14px 12px; font-size: 0.92em; }
     }
   </style>
 </head>
@@ -1246,7 +1293,8 @@
     }
   }
 
-  window.addEventListener('resize', initGraphs);
+  window.addEventListener('resize', () => { initGraphs(); updateGraphs(); });
+  window.addEventListener('orientationchange', () => { setTimeout(() => { initGraphs(); updateGraphs(); }, 250); });
 </script>
 </body>
 </html>

@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Plataforma de Simulação em Saúde • Dr. Moacir Carrion</title>
+  <link rel="stylesheet" href="assets/css/styles.css" />
+  <!-- QR Code -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
+  <script src="assets/js/data.js" defer></script>
+  <script src="assets/js/app.js" defer></script>
+</head>
+
+<body>
+  <div class="app">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">🚑</div>
+        <div class="brand-text">
+          <div class="brand-title">Plataforma de Simulação em Saúde</div>
+          <div class="brand-sub">Quizzes • Casos • Simulações • Jogos</div>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <button class="nav-item active" data-view="home">
+          <span class="dot"></span> Início
+        </button>
+
+        <button class="nav-item" data-view="quiz">
+          <span class="dot"></span> Quiz
+        </button>
+
+        <button class="nav-item" data-view="cases">
+          <span class="dot"></span> Casos Clínicos
+        </button>
+
+        <button class="nav-item" data-view="sims">
+          <span class="dot"></span> Simulações
+        </button>
+
+        <button class="nav-item" data-view="games">
+          <span class="dot"></span> Jogos
+        </button>
+
+        <!-- NOVO MENU -->
+        <button class="nav-item" data-view="ecg">
+          <span class="dot"></span> Leitura ECG
+        </button>
+
+        <button class="nav-item" data-view="qr">
+          <span class="dot"></span> QR Code de Acesso
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="creator">
+          <div class="creator-title">Criador</div>
+          <div class="creator-name">DR. MOACIR CARRION</div>
+          <div class="creator-sub">FISIOTERAPEUTA</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="main">
+      <header class="topbar">
+        <button class="icon-btn" id="toggleSidebar" aria-label="Alternar menu">☰</button>
+
+        <div class="topbar-title">
+          <div class="h1" id="viewTitle">Início</div>
+          <div class="h2" id="viewSubtitle">Treinamento interativo para dinâmicas hospitalares</div>
+        </div>
+
+        <div class="topbar-actions">
+          <button class="btn btn-ghost" id="btnResetAll" title="Reiniciar progresso local">Reiniciar</button>
+        </div>
+      </header>
+
+      <section class="content" id="content">
+        <!-- HOME -->
+        <div class="view" id="view-home">
+          <div class="grid">
+            <div class="card">
+              <div class="card-title">Como usar</div>
+              <div class="card-body">
+                <ul class="list">
+                  <li>Escolha um módulo no menu.</li>
+                  <li><b>Quiz</b>: perguntas rotativas com justificativa após responder.</li>
+                  <li><b>Casos Clínicos</b>: decisão rápida com tema e dica opcional.</li>
+                  <li><b>Simulações</b>: cenários por área, nível e profissão.</li>
+                  <li><b>Jogos</b>: Memória, Forca e Caça-Palavras.</li>
+                  <li><b>Leitura ECG</b>: monitor interativo (ritmos).</li>
+                  <li><b>QR Code</b>: acesso rápido para o celular.</li>
+                </ul>
+                <div class="muted">
+                  Uso educacional. Não substitui treinamento prático supervisionado.
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-title">Painel</div>
+              <div class="card-body">
+                <div class="stats">
+                  <div class="stat">
+                    <div class="stat-num" id="statQuizAnswered">0</div>
+                    <div class="stat-label">Respostas registradas</div>
+                  </div>
+                  <div class="stat">
+                    <div class="stat-num" id="statQuizAccuracy">0%</div>
+                    <div class="stat-label">Aproveitamento</div>
+                  </div>
+                  <div class="stat">
+                    <div class="stat-num" id="statGamesWins">0</div>
+                    <div class="stat-label">Vitórias/rodadas</div>
+                  </div>
+                </div>
+
+                <div class="hr"></div>
+
+                <div class="row">
+                  <button class="btn btn-primary" data-go="quiz">Iniciar Quiz</button>
+                  <button class="btn btn-secondary" data-go="games">Abrir Jogos</button>
+                  <button class="btn btn-ghost" data-go="ecg">Leitura ECG</button>
+                  <button class="btn btn-ghost" data-go="qr">QR Code</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-title">Áreas disponíveis</div>
+              <div class="card-body">
+                <div class="chips" id="chipsAreas"></div>
+                <div class="muted small">
+                  Para ampliar o conteúdo, edite <code>assets/js/data.js</code>.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- QUIZ -->
+        <div class="view hidden" id="view-quiz">
+          <div class="card">
+            <div class="card-title">Configurar Quiz</div>
+            <div class="card-body">
+              <div class="form">
+                <div class="field">
+                  <label>Área</label>
+                  <select id="quizArea"></select>
+                </div>
+                <div class="field">
+                  <label>Quantidade</label>
+                  <select id="quizCount">
+                    <option value="10">10 perguntas</option>
+                    <option value="20">20 perguntas</option>
+                    <option value="9999">Todas (rotativo)</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label>Modo</label>
+                  <select id="quizMode">
+                    <option value="random">Aleatório</option>
+                    <option value="sequential">Sequencial</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="row">
+                <button class="btn btn-primary" id="btnStartQuiz">Iniciar</button>
+                <button class="btn btn-ghost" id="btnExitQuiz">Voltar</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card hidden" id="quizPanel">
+            <div class="card-title">
+              <span id="quizPanelTitle">Quiz</span>
+              <span class="pill" id="quizProgress">0/0</span>
+            </div>
+            <div class="card-body">
+              <div class="q-text" id="quizQuestion">Pergunta...</div>
+              <div class="options" id="quizOptions"></div>
+
+              <div class="feedback hidden" id="quizFeedback"></div>
+
+              <div class="row space">
+                <div class="muted small" id="quizScore">Pontuação: 0</div>
+                <div class="row">
+                  <button class="btn btn-secondary hidden" id="btnQuizNext">Próxima</button>
+                  <button class="btn btn-ghost" id="btnQuizStop">Encerrar</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CASES -->
+        <div class="view hidden" id="view-cases">
+          <div class="card">
+            <div class="card-title">Casos Clínicos</div>
+            <div class="card-body">
+              <div class="row">
+                <button class="btn btn-primary" id="btnNewCase">Novo caso</button>
+                <button class="btn btn-ghost" id="btnCaseHint">Dica</button>
+              </div>
+              <div class="hr"></div>
+
+              <div class="case-box">
+                <div class="case-meta">
+                  <span class="pill" id="caseTheme">Tema: —</span>
+                  <span class="pill" id="caseArea">Área: —</span>
+                  <span class="pill" id="caseLevel">Nível: —</span>
+                  <span class="pill" id="caseProf">Profissão: —</span>
+                </div>
+
+                <div class="case-text" id="caseText">Clique em “Novo caso”.</div>
+                <div class="options" id="caseOptions"></div>
+                <div class="feedback hidden" id="caseFeedback"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SIMULATIONS -->
+        <div class="view hidden" id="view-sims">
+          <div class="card">
+            <div class="card-title">Simulações (por área, nível e profissão)</div>
+            <div class="card-body">
+              <div class="form">
+                <div class="field">
+                  <label>Área</label>
+                  <select id="simArea"></select>
+                </div>
+                <div class="field">
+                  <label>Nível</label>
+                  <select id="simLevel"></select>
+                </div>
+                <div class="field">
+                  <label>Profissão</label>
+                  <select id="simProf"></select>
+                </div>
+              </div>
+
+              <div class="row">
+                <button class="btn btn-primary" id="btnStartSim">Iniciar simulação</button>
+                <button class="btn btn-ghost" id="btnSimHint">Dica</button>
+              </div>
+
+              <div class="hr"></div>
+
+              <div class="sim-grid">
+                <div class="sim-vitals">
+                  <div class="vital"><span>FC</span><b id="vFC">—</b></div>
+                  <div class="vital"><span>FR</span><b id="vFR">—</b></div>
+                  <div class="vital"><span>SpO₂</span><b id="vSPO2">—</b></div>
+                  <div class="vital"><span>PA</span><b id="vPA">—</b></div>
+                </div>
+
+                <div class="sim-body">
+                  <div class="q-text" id="simPrompt">Selecione filtros e clique em “Iniciar simulação”.</div>
+                  <div class="options" id="simOptions"></div>
+                  <div class="feedback hidden" id="simFeedback"></div>
+
+                  <div class="row space">
+                    <div class="muted small" id="simStep">Etapa: —</div>
+                    <button class="btn btn-secondary hidden" id="btnSimNext">Próxima etapa</button>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- GAMES HUB -->
+        <div class="view hidden" id="view-games">
+          <div class="card">
+            <div class="card-title">Jogos</div>
+            <div class="card-body">
+              <div class="tabs">
+                <button class="tab active" data-game="memory">🧠 Memória</button>
+                <button class="tab" data-game="hangman">🔤 Forca</button>
+                <button class="tab" data-game="wordsearch">🔎 Caça-Palavras</button>
+              </div>
+
+              <div class="hr"></div>
+
+              <!-- MEMORY -->
+              <div class="game-panel" id="game-memory">
+                <div class="row space">
+                  <div class="muted small" id="memoryInfo">Combine termo ↔ definição (com ícones).</div>
+                  <div class="pill" id="memoryTimer">03:00</div>
+                </div>
+                <div class="row">
+                  <button class="btn btn-primary" id="btnStartMemory">Nova rodada</button>
+                  <button class="btn btn-ghost" id="btnMemoryReset">Reiniciar rodada</button>
+                </div>
+                <div class="hr"></div>
+                <div class="memory-grid" id="memoryGrid"></div>
+              </div>
+
+              <!-- HANGMAN -->
+              <div class="game-panel hidden" id="game-hangman">
+                <div class="row">
+                  <button class="btn btn-primary" id="btnNewHangman">Nova palavra</button>
+                  <button class="btn btn-ghost" id="btnHangmanHint">Dica</button>
+                </div>
+                <div class="hr"></div>
+                <div class="hangman">
+                  <div class="hang-word" id="hangWord">—</div>
+                  <div class="muted small" id="hangStatus">Tentativas restantes: —</div>
+                  <div class="keyboard" id="hangKeyboard"></div>
+                  <div class="feedback hidden" id="hangFeedback"></div>
+                </div>
+              </div>
+
+              <!-- WORDSEARCH -->
+              <div class="game-panel hidden" id="game-wordsearch">
+                <div class="row space">
+                  <div class="muted small">Encontre as palavras na grade (clique letra por letra).</div>
+                  <div class="pill" id="wsTimer">03:00</div>
+                </div>
+                <div class="row">
+                  <button class="btn btn-primary" id="btnWsNew">Novo caça-palavras</button>
+                  <button class="btn btn-ghost" id="btnWsClear">Limpar seleção</button>
+                </div>
+
+                <div class="hr"></div>
+
+                <div class="ws-wrap">
+                  <div class="ws-grid" id="wsGrid"></div>
+                  <div class="ws-side">
+                    <div class="ws-title">Palavras</div>
+                    <div class="ws-list" id="wsList"></div>
+                    <div class="hr"></div>
+                    <div class="muted small">
+                      Seleção atual: <span class="mono" id="wsCurrent">—</span>
+                    </div>
+                    <div class="feedback hidden" id="wsFeedback"></div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- NOVA VIEW ECG -->
+        <div class="view hidden" id="view-ecg">
+          <div class="card">
+            <div class="card-title">Leitura ECG (Monitor Interativo)</div>
+            <div class="card-body">
+              <div class="muted small">
+                Se não abrir, confirme que o arquivo <code>ecg.html</code> está na raiz do repositório (mesma pasta do <code>index.html</code>).
+              </div>
+              <div class="hr"></div>
+
+              <div class="ecg-frame-wrap">
+                <iframe class="ecg-frame" src="ecg.html" title="Monitor ECG"></iframe>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- QR -->
+        <div class="view hidden" id="view-qr">
+          <div class="card">
+            <div class="card-title">QR Code de Acesso</div>
+            <div class="card-body">
+              <div class="muted">
+                Após publicar no GitHub Pages, abra este link e gere o QR diretamente aqui.
+              </div>
+
+              <div class="row">
+                <button class="btn btn-primary" id="btnMakeQR">Gerar / Atualizar QR Code</button>
+                <button class="btn btn-ghost" id="btnCopyLink">Copiar link</button>
+              </div>
+
+              <div class="hr"></div>
+
+              <div class="qr-wrap">
+                <div id="qrBox" class="qr-box"></div>
+                <div class="qr-meta">
+                  <div><b>Link atual:</b></div>
+                  <div class="mono" id="qrLink">—</div>
+                  <div class="muted small">
+                    Dica: projete esta tela e os alunos escaneiam com a câmera do celular.
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <footer class="footer">
+        <div>© <span id="year"></span> • DR. MOACIR CARRION • FISIOTERAPEUTA</div>
+        <div class="muted small">Conteúdo educacional para dinâmicas e simulações.</div>
+      </footer>
+    </main>
+  </div>
+</body>
+</html>
